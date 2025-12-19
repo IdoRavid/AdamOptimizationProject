@@ -1,0 +1,29 @@
+"""Standard Adam optimizer."""
+from typing import Dict
+from torch import Tensor
+
+from .base import BaseOptimizer
+
+
+class Adam(BaseOptimizer):
+    """
+    Standard Adam optimizer.
+    
+    For L2 regularization, add weight_decay to gradient before calling step().
+    This is the "wrong" way per AdamW paper - used as baseline (A1).
+    """
+    
+    def compute_first_moment(self, grad: Tensor, state: Dict) -> Tensor:
+        state['m'].mul_(self.config.beta1).add_(grad, alpha=1 - self.config.beta1)
+        return state['m']
+    
+    def compute_second_moment(self, grad: Tensor, state: Dict, param: Tensor) -> Tensor:
+        state['v'].mul_(self.config.beta2).addcmul_(grad, grad, value=1 - self.config.beta2)
+        return state['v']
+    
+    def compute_update(self, m: Tensor, v: Tensor, state: Dict) -> Tensor:
+        bc1 = 1 - self.config.beta1 ** self.step_count
+        bc2 = 1 - self.config.beta2 ** self.step_count
+        m_hat = m / bc1
+        v_hat = v / bc2
+        return m_hat / (v_hat.sqrt() + self.config.eps)

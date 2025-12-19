@@ -1,0 +1,64 @@
+Project Ideas
+
+ ### Adafactor Thoughts
+ - instead of keeping all 2nd moments (∇g^2) of W parameter matrix, keep moving-average of sum of Columns & Rows.
+  - removes computational overhead from O(nm)-> O(n+m) for 2nd order momentum storage
+
+
+ - Thoretical background - Second Moment
+    - In the past,  solution was to keep a lower rank matrix (like PCA), but it's not working well
+   - using generalized KLD as cost function.
+   - When projecting to rank-1 matrices, optimal reconstruction can be calcuated from sum of cols and rows.
+   - using just one didn't work very well, persumably because rows & columns store different parts of the structure of the data
+
+  - Removing First Moment:
+    - To actually imrpove space results, we have to remove first moment as well. but this creates several problems- stale gradients from past iterations cause too-big/too-small updates
+    - introduce RMS qunatity to measure "stale" gradients. 1 is good, further indicates bad 2nd momentum.
+    - solution - clipping if RMS is bad
+    - Alternative solution - β2 increasing schedule which starts at 0 -> 1 slowly, making old gradient vanish eventually  & no bias.
+  
+
+  - step size - suggested linear ramp-up & decay
+  - use relative step size
+
+  Things to try:
+
+  | Variant | Factored | β₁ | β̂₂ₜ | Clipping | Step Size |
+|---------|----------|-----|------|----------|-----------|
+| Adafactor  | Yes | 0 | 1-t⁻⁰·⁸ | d=1 | Relative |
+| Adafactor + momentum | Yes | 0.9 | 1-t⁻⁰·⁸ | d=1 | Relative |
+
+
+
+Combinations:
+
+| Base | Normalized Decay | LR Schedule | Factored | Momentum | Clipping | Step Size |
+|------|------------------|-------------|----------|----------|----------|-----------|
+| AdamW | Yes | Cosine | Yes | No | d=1 | Relative |
+| AdamW | Yes | Warm Restarts | Yes | No | d=1 | Relative |
+| AdamW | Yes | Cosine | Yes | Yes | d=1 | Relative |
+| AdamW | Yes | Warm Restarts | Yes | Yes | d=1 | Relative |
+
+
+### AdamW Thoughts
+- Essentially - decoupling L2 from weight decay for Adam, since L2 decays them post-normailzation and takes into account gradient size (even when it should not).
+- The solution is weight decay independent from gradient, which makes it uniform and prevents exploding
+- Theoretical Idea behind this - Bayesian Filtering which is essentialy sequential bayesian inference
+- All AdamW combinations listed:
+| Base | Normalized Decay | LR Schedule |
+|------|------------------|-------------|
+| AdamW | No | Fixed |
+| AdamW | No | Step-drop |
+| AdamW | No | Cosine |
+| AdamW | No | Warm Restarts |
+| AdamW | Yes | Fixed |
+| AdamW | Yes | Step-drop |
+| AdamW | Yes | Cosine |
+| AdamW | Yes | Warm Restarts |
+
+- Creating enough simulations so we'd have a graph similar to the experiment.
+~132 per heatmeap => Total ~1000
+
+
+
+
