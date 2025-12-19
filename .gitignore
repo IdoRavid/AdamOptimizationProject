@@ -1,0 +1,5 @@
+*.png
+opt_2025_6*.pdf
+__pycache__/
+.idea/
+data/
