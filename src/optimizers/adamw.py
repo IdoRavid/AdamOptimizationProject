@@ -35,9 +35,10 @@ class AdamW(Adam):
         
         wd = self.config.weight_decay
         
-        # Normalized weight decay (optional)
+        # Normalized weight decay: λ_norm = λ * √(batch_size / total_batches)
         if self.config.normalized_decay and self.config.total_batches:
             wd *= (self.config.batch_size / self.config.total_batches) ** 0.5
         
-        # Decoupled: w = w * (1 - lr * wd)
+        # Decoupled weight decay: θ_t = θ_t * (1 - α * λ)
+        # Applied directly to weights, not through gradient
         param.data.mul_(1 - lr * wd)

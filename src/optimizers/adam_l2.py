@@ -9,6 +9,7 @@ class AdamL2(Adam):
     """
     
     def step(self) -> None:
+        # L2 regularization: g_t = g_t + λ * θ_t (added to gradient)
         if self.config.weight_decay > 0:
             for param in self.params:
                 if param.grad is not None:
