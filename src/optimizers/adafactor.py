@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, Iterator, Optional, Tuple
-
+from abc import ABC, abstractmethod
 import math
 import torch
 from torch import Tensor
@@ -61,6 +61,124 @@ class AdafactorConfig(OptimizerConfig):
     # Time-varying beta2 schedule exponent (default matches plan: 0.8)
     beta2_exponent: float = 0.8
 
+    # --- Projection experiment knobs (default = no projection) ---
+    projection: str = "none"  # one of: none, nonneg, box, l2_ball, simplex
+    proj_box_l: float = 0.0
+    proj_box_u: float = 1e6
+    proj_l2_radius: float = 1e3
+    proj_simplex_sum: float = 1.0
+
+    # If True, store vr_pre_proj / vc_pre_proj in state for notebook metrics
+    track_projection_metrics: bool = False
+
+# ============================================================
+# Projection API for factored Adafactor running-average vectors
+# ============================================================
+
+class Projection(ABC):
+    """
+    A projection operator Π_C(·) applied to Adafactor's running-average
+    vectors vr/vc after they are updated (EMA of row/col means of g^2).
+
+    Expected input: 1D tensor v (on CPU/GPU), returns 1D tensor.
+    Must preserve shape.
+    """
+    name: str = "base"
+
+    @abstractmethod
+    def project(self, v: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+
+
+class IdentityProjection(Projection):
+    name = "none"
+    def project(self, v: torch.Tensor) -> torch.Tensor:
+        return v
+
+
+class NonNegProjection(Projection):
+    name = "nonneg"
+    def project(self, v: torch.Tensor) -> torch.Tensor:
+        return v.clamp_min(0.0)
+
+
+class BoxProjection(Projection):
+    name = "box"
+    def __init__(self, l: float = 0.0, u: float = 1e6):
+        self.l = float(l)
+        self.u = float(u)
+
+    def project(self, v: torch.Tensor) -> torch.Tensor:
+        return v.clamp(min=self.l, max=self.u)
+
+
+class L2BallProjection(Projection):
+    name = "l2_ball"
+    def __init__(self, radius: float = 1e3, eps: float = 1e-12):
+        self.radius = float(radius)
+        self.eps = float(eps)
+
+    def project(self, v: torch.Tensor) -> torch.Tensor:
+        n = v.norm()
+        if float(n) <= self.radius:
+            return v
+        return v * (self.radius / n.clamp_min(self.eps))
+
+
+class SimplexProjection(Projection):
+    """
+    Project onto simplex {x >= 0, sum x = s} using Duchi et al.
+    """
+    name = "simplex"
+    def __init__(self, s: float = 1.0, eps: float = 1e-12):
+        self.s = float(s)
+        self.eps = float(eps)
+
+    def project(self, v: torch.Tensor) -> torch.Tensor:
+        x = v.clamp_min(0.0)
+        if float(x.sum()) == 0.0:
+            return torch.full_like(x, fill_value=self.s / x.numel())
+
+        u_sorted, _ = torch.sort(x, descending=True)
+        cssv = torch.cumsum(u_sorted, dim=0) - self.s
+
+        ind = torch.arange(1, x.numel() + 1, device=x.device, dtype=x.dtype)
+        cond = u_sorted - cssv / ind > 0
+
+        if not bool(cond.any()):
+            theta = cssv[-1] / ind[-1]
+        else:
+            rho = torch.nonzero(cond, as_tuple=False).max()
+            theta = cssv[rho] / (rho + 1).to(x.dtype)
+
+        w = (x - theta).clamp_min(0.0)
+        # Renormalize to hit sum exactly (numerical)
+        s_now = w.sum().clamp_min(self.eps)
+        return w * (self.s / s_now)
+
+
+def make_projection(
+    kind: str,
+    *,
+    box_l: float,
+    box_u: float,
+    l2_radius: float,
+    simplex_sum: float
+) -> Projection:
+    kind = (kind or "none").lower()
+    if kind in ("none", "identity"):
+        return IdentityProjection()
+    if kind in ("nonneg", "nn"):
+        return NonNegProjection()
+    if kind in ("box", "clip"):
+        return BoxProjection(l=box_l, u=box_u)
+    if kind in ("l2", "l2_ball", "ball"):
+        return L2BallProjection(radius=l2_radius)
+    if kind in ("simplex",):
+        return SimplexProjection(s=simplex_sum)
+    raise ValueError(f"Unknown projection kind: {kind}")
+
+
 
 class Adafactor(BaseOptimizer):
     """
@@ -81,6 +199,13 @@ class Adafactor(BaseOptimizer):
     ):
         super().__init__(params, config, lr_scheduler, total_steps)
         self.config: AdafactorConfig = config
+        self.projection = make_projection(
+            self.config.projection,
+            box_l=self.config.proj_box_l,
+            box_u=self.config.proj_box_u,
+            l2_radius=self.config.proj_l2_radius,
+            simplex_sum=self.config.proj_simplex_sum
+        )
 
     # ----------------------------
     # Helpers
@@ -185,6 +310,15 @@ class Adafactor(BaseOptimizer):
 
             state["vr"].mul_(beta2_t).add_(row_mean, alpha=one_minus)
             state["vc"].mul_(beta2_t).add_(col_mean, alpha=one_minus)
+
+            # --- optional: save pre-projection copies for metrics ---
+            if self.config.track_projection_metrics:
+                state["vr_pre_proj"] = state["vr"].detach().clone()
+                state["vc_pre_proj"] = state["vc"].detach().clone()
+
+            # --- apply projection in-place (conceptually Π_C) ---
+            state["vr"] = self.projection.project(state["vr"])
+            state["vc"] = self.projection.project(state["vc"])
 
             # Reconstruct v approx: outer(vr, vc) / mean(vr)
             vr = state["vr"]
