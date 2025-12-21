@@ -71,34 +71,87 @@ class AdafactorConfig(OptimizerConfig):
     # If True, store vr_pre_proj / vc_pre_proj in state for notebook metrics
     track_projection_metrics: bool = False
 
+    proj_l2_scale_multiplier: float = 1.0
+    proj_l2_min_radius: float = 0.0
+    proj_l2_max_radius: float = float("inf")
+
+    projection_spec: str = "none"
+    track_projection_metrics: bool = False
+
+
 # ============================================================
 # Projection API for factored Adafactor running-average vectors
 # ============================================================
 
 class Projection(ABC):
-    """
-    A projection operator Π_C(·) applied to Adafactor's running-average
-    vectors vr/vc after they are updated (EMA of row/col means of g^2).
-
-    Expected input: 1D tensor v (on CPU/GPU), returns 1D tensor.
-    Must preserve shape.
-    """
     name: str = "base"
 
-    @abstractmethod
     def project(self, v: torch.Tensor) -> torch.Tensor:
+        return self._project(v)
+
+    @abstractmethod
+    def _project(self, v: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
+class ScaleProvider(ABC):
+    """
+    Provides a positive scalar used to adapt the L2 ball radius.
+    We update it from inside Adafactor (per-parameter) right before projecting.
+    """
+    name: str = "scale_base"
+
+    def __init__(self, eps: float = 1e-12):
+        self.eps = float(eps)
+        self._scale = 1.0
+
+    def set_from(self, *, v: Optional[torch.Tensor] = None, param_rms: Optional[float] = None) -> None:
+        """
+        Update internal scale based on runtime info.
+        Default does nothing.
+        """
+        pass
+
+    def get(self) -> float:
+        return float(max(self._scale, self.eps))
+
+
+class ConstantScale(ScaleProvider):
+    name = "const"
+    def __init__(self, value: float = 1.0, eps: float = 1e-12):
+        super().__init__(eps=eps)
+        self._scale = float(value)
+
+    def set_from(self, *, v=None, param_rms=None) -> None:
+        # stays constant
+        return
+
+
+class ParamRMSScale(ScaleProvider):
+    name = "param_rms"
+    def set_from(self, *, v=None, param_rms=None) -> None:
+        if param_rms is None:
+            return
+        self._scale = float(param_rms)
+
+
+class VectorRMSScale(ScaleProvider):
+    name = "vec_rms"
+    def set_from(self, *, v=None, param_rms=None) -> None:
+        if v is None:
+            return
+        # RMS(v) = sqrt(mean(v^2))
+        rms = torch.sqrt(torch.mean(v * v)).detach()
+        self._scale = float(rms)
 
 
 class IdentityProjection(Projection):
     name = "none"
-    def project(self, v: torch.Tensor) -> torch.Tensor:
+    def _project(self, v: torch.Tensor) -> torch.Tensor:
         return v
 
 
 class NonNegProjection(Projection):
     name = "nonneg"
-    def project(self, v: torch.Tensor) -> torch.Tensor:
+    def _project(self, v: torch.Tensor) -> torch.Tensor:
         return v.clamp_min(0.0)
 
 
@@ -108,40 +161,23 @@ class BoxProjection(Projection):
         self.l = float(l)
         self.u = float(u)
 
-    def project(self, v: torch.Tensor) -> torch.Tensor:
+    def _project(self, v: torch.Tensor) -> torch.Tensor:
         return v.clamp(min=self.l, max=self.u)
 
 
-class L2BallProjection(Projection):
-    name = "l2_ball"
-    def __init__(self, radius: float = 1e3, eps: float = 1e-12):
-        self.radius = float(radius)
-        self.eps = float(eps)
-
-    def project(self, v: torch.Tensor) -> torch.Tensor:
-        n = v.norm()
-        if float(n) <= self.radius:
-            return v
-        return v * (self.radius / n.clamp_min(self.eps))
-
-
 class SimplexProjection(Projection):
-    """
-    Project onto simplex {x >= 0, sum x = s} using Duchi et al.
-    """
     name = "simplex"
     def __init__(self, s: float = 1.0, eps: float = 1e-12):
         self.s = float(s)
         self.eps = float(eps)
 
-    def project(self, v: torch.Tensor) -> torch.Tensor:
+    def _project(self, v: torch.Tensor) -> torch.Tensor:
         x = v.clamp_min(0.0)
         if float(x.sum()) == 0.0:
             return torch.full_like(x, fill_value=self.s / x.numel())
 
         u_sorted, _ = torch.sort(x, descending=True)
         cssv = torch.cumsum(u_sorted, dim=0) - self.s
-
         ind = torch.arange(1, x.numel() + 1, device=x.device, dtype=x.dtype)
         cond = u_sorted - cssv / ind > 0
 
@@ -152,31 +188,107 @@ class SimplexProjection(Projection):
             theta = cssv[rho] / (rho + 1).to(x.dtype)
 
         w = (x - theta).clamp_min(0.0)
-        # Renormalize to hit sum exactly (numerical)
         s_now = w.sum().clamp_min(self.eps)
         return w * (self.s / s_now)
 
 
-def make_projection(
-    kind: str,
-    *,
-    box_l: float,
-    box_u: float,
-    l2_radius: float,
-    simplex_sum: float
-) -> Projection:
-    kind = (kind or "none").lower()
-    if kind in ("none", "identity"):
+class L2BallProjection(Projection):
+    """
+    Project onto {||v||_2 <= R}, with optional adaptive R:
+        R = base_radius * multiplier * scale_provider.get()
+    """
+    name = "l2_ball"
+
+    def __init__(
+        self,
+        base_radius: float = 1e3,
+        multiplier: float = 1.0,
+        scale_provider: Optional[ScaleProvider] = None,
+        min_radius: float = 0.0,
+        max_radius: float = float("inf"),
+        eps: float = 1e-12,
+    ):
+        self.base_radius = float(base_radius)
+        self.multiplier = float(multiplier)
+        self.scale_provider = scale_provider if scale_provider is not None else ConstantScale(1.0, eps=eps)
+        self.min_radius = float(min_radius)
+        self.max_radius = float(max_radius)
+        self.eps = float(eps)
+
+    def current_radius(self) -> float:
+        R = self.base_radius * self.multiplier * self.scale_provider.get()
+        R = max(R, self.min_radius)
+        R = min(R, self.max_radius)
+        return float(R)
+
+    def _project(self, v: torch.Tensor) -> torch.Tensor:
+        R = self.current_radius()
+        n = v.norm()
+        if float(n) <= R:
+            return v
+        return v * (R / n.clamp_min(self.eps))
+
+def _parse_kv(spec: str) -> dict:
+    # "a=1,b=2" -> {"a":"1","b":"2"}
+    out = {}
+    for part in spec.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        k, v = part.split("=", 1)
+        out[k.strip()] = v.strip()
+    return out
+
+def make_projection_from_spec(spec: str) -> Projection:
+    spec = (spec or "none").strip().lower()
+    if spec in ("none", "identity"):
         return IdentityProjection()
-    if kind in ("nonneg", "nn"):
+    if spec in ("nonneg", "nn"):
         return NonNegProjection()
-    if kind in ("box", "clip"):
-        return BoxProjection(l=box_l, u=box_u)
-    if kind in ("l2", "l2_ball", "ball"):
-        return L2BallProjection(radius=l2_radius)
-    if kind in ("simplex",):
-        return SimplexProjection(s=simplex_sum)
-    raise ValueError(f"Unknown projection kind: {kind}")
+
+    # format: kind:kv,kv,...
+    if ":" not in spec:
+        raise ValueError(f"Invalid projection_spec '{spec}' (expected kind or kind:kv...)")
+
+    kind, kv = spec.split(":", 1)
+    kv = _parse_kv(kv)
+
+    if kind == "box":
+        l = float(kv.get("l", "0.0"))
+        u = float(kv.get("u", "1e6"))
+        return BoxProjection(l=l, u=u)
+
+    if kind == "simplex":
+        s = float(kv.get("s", "1.0"))
+        return SimplexProjection(s=s)
+
+    if kind == "l2_ball":
+        base = float(kv.get("base", "1e3"))
+        mult = float(kv.get("mult", "1.0"))
+        min_r = float(kv.get("min", "0.0"))
+        max_r_str = kv.get("max", "inf")
+        max_r = float("inf") if max_r_str == "inf" else float(max_r_str)
+
+        scale_name = kv.get("scale", "const")
+        if scale_name == "const":
+            sp = ConstantScale(float(kv.get("value", "1.0")))
+        elif scale_name == "param_rms":
+            sp = ParamRMSScale()
+        elif scale_name in ("vec_rms", "vr_rms", "vc_rms"):
+            sp = VectorRMSScale()
+        else:
+            raise ValueError(f"Unknown scale provider '{scale_name}' in '{spec}'")
+
+        return L2BallProjection(
+            base_radius=base,
+            multiplier=mult,
+            scale_provider=sp,
+            min_radius=min_r,
+            max_radius=max_r
+        )
+
+    raise ValueError(f"Unknown projection kind '{kind}' in '{spec}'")
+
 
 
 
@@ -199,13 +311,7 @@ class Adafactor(BaseOptimizer):
     ):
         super().__init__(params, config, lr_scheduler, total_steps)
         self.config: AdafactorConfig = config
-        self.projection = make_projection(
-            self.config.projection,
-            box_l=self.config.proj_box_l,
-            box_u=self.config.proj_box_u,
-            l2_radius=self.config.proj_l2_radius,
-            simplex_sum=self.config.proj_simplex_sum
-        )
+        self.projection = make_projection_from_spec(self.config.projection_spec)
 
     # ----------------------------
     # Helpers
@@ -316,9 +422,18 @@ class Adafactor(BaseOptimizer):
                 state["vr_pre_proj"] = state["vr"].detach().clone()
                 state["vc_pre_proj"] = state["vc"].detach().clone()
 
-            # --- apply projection in-place (conceptually Π_C) ---
-            state["vr"] = self.projection.project(state["vr"])
-            state["vc"] = self.projection.project(state["vc"])
+            # If L2BallProjection with a scale provider, update its scale per vector
+            if isinstance(self.projection, L2BallProjection):
+                # Update scale for vr projection
+                self.projection.scale_provider.set_from(v=state["vr"], param_rms=float(state.get("param_rms", 1.0)))
+                state["vr"] = self.projection.project(state["vr"])
+
+                # Update scale for vc projection
+                self.projection.scale_provider.set_from(v=state["vc"], param_rms=float(state.get("param_rms", 1.0)))
+                state["vc"] = self.projection.project(state["vc"])
+            else:
+                state["vr"] = self.projection.project(state["vr"])
+                state["vc"] = self.projection.project(state["vc"])
 
             # Reconstruct v approx: outer(vr, vc) / mean(vr)
             vr = state["vr"]
