@@ -25,11 +25,11 @@ Generate hyperparameter sensitivity heatmaps (learning rate vs weight decay) to 
 |----|-------------------------|-------|-----------|-----------|
 | A1 | Adam+L2                 | Ido   | dodor25   | 144/144 ✅ |
 | B1 | AdamW Fixed             | Omer  |           | 144/144 ✅ |
-| B2 | AdamW StepDrop          | Ido   | ido@huji  | /144      |
-| B3 | AdamW Cosine            | Ido   | idoravid6 | /144      |
+| B2 | AdamW StepDrop          | Ido   | ido@huji  | 144/144 ✅ |
+| B3 | AdamW Cosine            | Ido   | idoravid6 | 144/144 ✅ |
 | B4 | AdamW WarmRestarts      | Ido   | dodor25   | /144      |
-| B5 | AdamW+Norm Fixed        |       |           | /144      |
-| B6 | AdamW+Norm StepDrop     |       |           | /144      |
+| B5 | AdamW+Norm Fixed        | Ido   | ido@huji  | /144      |
+| B6 | AdamW+Norm StepDrop     | Ido   | idoravid6 | /144      |
 | B7 | AdamW+Norm Cosine       |       |           | /144      |
 | B8 | AdamW+Norm WarmRestarts |       |           | /144      |
 | C1 | Adafactor (no momentum) | Omer  |           | /144      |
