@@ -19,6 +19,25 @@ Generate hyperparameter sensitivity heatmaps (learning rate vs weight decay) to 
 | C1-C2 | Adafactor | Factored second moments |
 | D1-D3 | Combined | AdamW + Adafactor techniques |
 
+## Phase 1 Progress (30 epochs, 144 configs each)
+
+| ID | Variant | Owner | User | Progress |
+|----|---------|-------|------|----------|
+| A1 | Adam+L2 | Ido | | /144 |
+| B1 | AdamW Fixed | Omer | | 144/144 ✅ |
+| B2 | AdamW StepDrop | | | /144 |
+| B3 | AdamW Cosine | | | /144 |
+| B4 | AdamW WarmRestarts | | | /144 |
+| B5 | AdamW+Norm Fixed | | | /144 |
+| B6 | AdamW+Norm StepDrop | | | /144 |
+| B7 | AdamW+Norm Cosine | | | /144 |
+| B8 | AdamW+Norm WarmRestarts | | | /144 |
+| C1 | Adafactor (no momentum) | Omer | | /144 |
+| C2 | Adafactor (momentum) | Omer | | /144 |
+| D1 | Combined | Omer | | /144 |
+| D2 | Combined | Omer | | /144 |
+| D3 | Combined | Omer | | /144 |
+
 ## Run in Colab
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/IdoRavid/AdamOptimizationProject/blob/main/Omer%26Ido_Optimizing_Fashion.ipynb)
