@@ -21,22 +21,22 @@ Generate hyperparameter sensitivity heatmaps (learning rate vs weight decay) to 
 
 ## Phase 1 Progress (30 epochs, 144 configs each)
 
-| ID | Variant | Owner | User | Progress |
-|----|---------|-------|------|----------|
-| A1 | Adam+L2 | Ido | | /144 |
-| B1 | AdamW Fixed | Omer | | 144/144 ✅ |
-| B2 | AdamW StepDrop | | | /144 |
-| B3 | AdamW Cosine | | | /144 |
-| B4 | AdamW WarmRestarts | | | /144 |
-| B5 | AdamW+Norm Fixed | | | /144 |
-| B6 | AdamW+Norm StepDrop | | | /144 |
-| B7 | AdamW+Norm Cosine | | | /144 |
-| B8 | AdamW+Norm WarmRestarts | | | /144 |
-| C1 | Adafactor (no momentum) | Omer | | /144 |
-| C2 | Adafactor (momentum) | Omer | | /144 |
-| D1 | Combined | Omer | | /144 |
-| D2 | Combined | Omer | | /144 |
-| D3 | Combined | Omer | | /144 |
+| ID | Variant                 | Owner | User      | Progress  |
+|----|-------------------------|-------|-----------|-----------|
+| A1 | Adam+L2                 | Ido   | dodor25   | 144/144 ✅ |
+| B1 | AdamW Fixed             | Omer  |           | 144/144 ✅ |
+| B2 | AdamW StepDrop          | Ido   | ido@huji  | 144/144 ✅ |
+| B3 | AdamW Cosine            | Ido   | idoravid6 | 144/144 ✅ |
+| B4 | AdamW WarmRestarts      | Ido   | dodor25   | /144      |
+| B5 | AdamW+Norm Fixed        | Ido   | ido@huji  | /144      |
+| B6 | AdamW+Norm StepDrop     | Ido   | idoravid6 | /144      |
+| B7 | AdamW+Norm Cosine       | Omer  | normal    | /144      |
+| B8 | AdamW+Norm WarmRestarts | Omer  | huji      | /144      |
+| C1 | Adafactor (no momentum) | Omer  |           | /144      |
+| C2 | Adafactor (momentum)    | Omer  |           | /144      |
+| D1 | Combined                | Omer  |           | /144      |
+| D2 | Combined                | Omer  |           | /144      |
+| D3 | Combined                | Omer  |           | /144      |
 
 ## Run in Colab
 
