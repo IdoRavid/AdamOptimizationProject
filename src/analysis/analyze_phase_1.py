@@ -71,7 +71,7 @@ def plot_heatmaps(data, output=None):
                 j = wd_mults.index(r['wd_multiplier'])
                 heatmap[i, j] = r['best_test_loss']
             
-            im = ax.imshow(heatmap, cmap='RdYlGn_r', aspect='auto', origin='lower', vmin=vmin, vmax=vmax)
+            im = ax.imshow(heatmap, cmap='Spectral', aspect='auto', origin='lower', vmin=vmin, vmax=vmax)
             ax.set_title(f"{name}: {d['optimizer_name']}", fontsize=18, fontweight='bold')
             ax.set_xlabel('WD mult', fontsize=16)
             ax.set_xticks([0, len(wd_mults)//2, len(wd_mults)-1])
