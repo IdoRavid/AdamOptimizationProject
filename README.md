@@ -24,7 +24,7 @@ Generate hyperparameter sensitivity heatmaps (learning rate vs weight decay) to 
 | ID | Variant                 | Owner | User      | Progress  |
 |----|-------------------------|-------|-----------|-----------|
 | A1 | Adam+L2                 | Ido   | dodor25   | 144/144 ✅ |
-| B1 | AdamW Fixed             | Omer  |           | 144/144 ✅ |
+| B1 | AdamW Fixed             | Omer  |           | 57/144    |
 | B2 | AdamW StepDrop          | Ido   | ido@huji  | 144/144 ✅ |
 | B3 | AdamW Cosine            | Ido   | idoravid6 | 144/144 ✅ |
 | B4 | AdamW WarmRestarts      | Ido   | dodor25   | 144/144 ✅ |
@@ -33,10 +33,10 @@ Generate hyperparameter sensitivity heatmaps (learning rate vs weight decay) to 
 | B7 | AdamW+Norm Cosine       | Omer  | normal    | 144/144 ✅ |
 | B8 | AdamW+Norm WarmRestarts | Omer  | huji      | 144/144 ✅ |
 | C1 | Adafactor (no momentum) | Ido   | dodor25   | 144/144 ✅ |
-| C2 | Adafactor (momentum)    | Ido   | idoravid6 | /144      |
+| C2 | Adafactor (momentum)    | Ido   | idoravid6 | 144/144 ✅ |
 | D1 | Combined                | Omer  | normal    | 144/144 ✅ |
 | D2 | Combined                | Omer  | huji      | 123/144   |
-| D3 | Combined                | Ido   | idoravid6 | /144      |
+| D3 | Combined                | Ido   | idoravid6 | 32/144    |
 
 ## Run in Colab
 
