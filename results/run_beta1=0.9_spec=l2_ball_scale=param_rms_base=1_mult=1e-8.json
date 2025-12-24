@@ -1,0 +1,172 @@
+{
+  "meta": {
+    "seed": 0,
+    "beta1": 0.9,
+    "projection_spec": "l2_ball:scale=param_rms,base=1,mult=1e-8",
+    "lr": 0.002,
+    "wd": 3.125e-05,
+    "batch_size": 128,
+    "epochs": 30,
+    "steps_per_epoch_used": 468,
+    "elapsed_sec": 125.0918345451355,
+    "weights_path": "/content/drive/MyDrive/adafactor_projection_test/long_runs/weights_beta1=0.9_spec=l2_ball_scale=param_rms_base=1_mult=1e-8.pt"
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.17059130419013846,
+      "test_loss": 0.16972243842444842
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.17011620970363292,
+      "test_loss": 0.1692211422361905
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.16957023090276963,
+      "test_loss": 0.16867122129548953
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.16899057417216465,
+      "test_loss": 0.16804133959208864
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.16831103030942443,
+      "test_loss": 0.16732325999042655
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.16753632040360036,
+      "test_loss": 0.16648001063473616
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.1666129090401352,
+      "test_loss": 0.1654537018341354
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.16546139015983313,
+      "test_loss": 0.16419891862175132
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.16406622443061608,
+      "test_loss": 0.16266455699371385
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.16237986406199953,
+      "test_loss": 0.16080056526992895
+    },
+    {
+      "epoch": 11,
+      "train_loss": 0.16030990036252218,
+      "test_loss": 0.1585176598422135
+    },
+    {
+      "epoch": 12,
+      "train_loss": 0.1577855327254177,
+      "test_loss": 0.15575538481338114
+    },
+    {
+      "epoch": 13,
+      "train_loss": 0.15476025796980938,
+      "test_loss": 0.15246666439726383
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.15119081442682153,
+      "test_loss": 0.1486447196972521
+    },
+    {
+      "epoch": 15,
+      "train_loss": 0.1471003476753194,
+      "test_loss": 0.14430277936066252
+    },
+    {
+      "epoch": 16,
+      "train_loss": 0.1425041044369722,
+      "test_loss": 0.13950843920436087
+    },
+    {
+      "epoch": 17,
+      "train_loss": 0.13752928700966713,
+      "test_loss": 0.134382453711727
+    },
+    {
+      "epoch": 18,
+      "train_loss": 0.1322869458832802,
+      "test_loss": 0.1290671002072624
+    },
+    {
+      "epoch": 19,
+      "train_loss": 0.12689537952980426,
+      "test_loss": 0.1236633483933497
+    },
+    {
+      "epoch": 20,
+      "train_loss": 0.1214795825509434,
+      "test_loss": 0.11831420546845545
+    },
+    {
+      "epoch": 21,
+      "train_loss": 0.11619551513248529,
+      "test_loss": 0.11311242135265205
+    },
+    {
+      "epoch": 22,
+      "train_loss": 0.11106744620344068,
+      "test_loss": 0.10813710602778423
+    },
+    {
+      "epoch": 23,
+      "train_loss": 0.10624218677990457,
+      "test_loss": 0.10349892023243482
+    },
+    {
+      "epoch": 24,
+      "train_loss": 0.10173462668799946,
+      "test_loss": 0.09917064907052849
+    },
+    {
+      "epoch": 25,
+      "train_loss": 0.09758582179490317,
+      "test_loss": 0.09520816020195998
+    },
+    {
+      "epoch": 26,
+      "train_loss": 0.09380128274424973,
+      "test_loss": 0.09161558398340322
+    },
+    {
+      "epoch": 27,
+      "train_loss": 0.09039125580372465,
+      "test_loss": 0.08839611935464642
+    },
+    {
+      "epoch": 28,
+      "train_loss": 0.08735012259875607,
+      "test_loss": 0.085543254602559
+    },
+    {
+      "epoch": 29,
+      "train_loss": 0.08469557031415977,
+      "test_loss": 0.08303968636672708
+    },
+    {
+      "epoch": 30,
+      "train_loss": 0.08235388349455136,
+      "test_loss": 0.08084209433084802
+    }
+  ],
+  "final": {
+    "train_loss": 0.08235388349455136,
+    "test_loss": 0.08084209433084802,
+    "best_test_loss": 0.08084209433084802,
+    "best_epoch": 30
+  }
+}
