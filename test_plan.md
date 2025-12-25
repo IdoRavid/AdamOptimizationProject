@@ -100,9 +100,8 @@ Run 144 configs for each optimizer to generate heatmaps.
 | ID | Optimizer          | LR mult | WD mult | Why selected                      |
 |----|--------------------|---------|---------|-----------------------------------|
 | A1 | Adam+L2            | 2       | 0       | Control (coupled baseline)        |
-| B3 | AdamW Cosine       | 2       | 0.5     | Standard AdamW, no normalization  |
-| B4 | AdamW WarmRestarts | 2       | 0.03125 | Shows SGDR benefit                |
-| B5 | AdamW Fixed+Norm   | 2       | 32      | Best overall, shows normalization |
+| B1 | AdamW Fixed        | 2       | 4       | Best overall AdamW                |
+| B3 | AdamW Cosine       | 2       | 0.5     | Standard AdamW with cosine LR     |
 
 **Logging (per epoch):**
 - Train/test loss
