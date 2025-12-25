@@ -10,13 +10,26 @@ RESULTS_DIR = PROJECT_ROOT / 'results'
 ANALYSIS_DIR = PROJECT_ROOT / 'analysis'
 
 def load_results():
-    """Load all JSON result files."""
+    """Load all JSON result files (grid search format only)."""
     data = {}
     for f in sorted(RESULTS_DIR.glob('*.json')):
         name = f.stem.split('_')[0]  # e.g., 'A1' from 'A1_Adam+L2.json'
         with open(f) as fp:
-            data[name] = json.load(fp)
+            content = json.load(fp)
+        # Skip non-grid-search files (E variants have 'history' instead of 'results')
+        if 'results' not in content:
+            continue
+        data[name] = content
         print(f"Loaded {name}: {len(data[name]['results'])}/144 configs")
+    return data
+
+def load_e_variants():
+    """Load E variant JSON files (projection experiments)."""
+    data = {}
+    for f in sorted(RESULTS_DIR.glob('E*.json')):
+        with open(f) as fp:
+            data[f.stem] = json.load(fp)
+        print(f"Loaded {f.stem}")
     return data
 
 def plot_heatmaps(data, output=None):
@@ -155,9 +168,51 @@ def print_summary(data):
     for i, (name, median) in enumerate(ranking):
         print(f"{i+1}. {name}: median={median:.4f}")
 
+def plot_e_variants(data, output=None):
+    """Plot training curves and comparison for E variants."""
+    output = output or ANALYSIS_DIR / 'projection_experiments.png'
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    
+    for name, d in data.items():
+        epochs = [h['epoch'] for h in d['history']]
+        test = [h['test_loss'] for h in d['history']]
+        ax1.plot(epochs, test, label=name.split('_')[0], linewidth=2)
+    
+    ax1.set_xlabel('Epoch'); ax1.set_ylabel('Test Loss')
+    ax1.set_title('Projection Experiments: Test Loss Curves')
+    ax1.legend(); ax1.grid(alpha=0.3)
+    
+    names = [n.split('_')[0] for n in data.keys()]
+    losses = [d['final']['test_loss'] for d in data.values()]
+    bars = ax2.bar(names, losses, color=plt.cm.tab10.colors[:len(names)])
+    ax2.set_ylabel('Final Test Loss'); ax2.set_title('Final Test Loss Comparison')
+    for bar, loss in zip(bars, losses):
+        ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.002, f'{loss:.4f}', ha='center', fontsize=9)
+    
+    plt.tight_layout()
+    plt.savefig(output, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output}")
+
+def print_e_summary(data):
+    """Print E variants summary."""
+    print("\n" + "="*80)
+    print("PROJECTION EXPERIMENTS (E VARIANTS)")
+    print("="*80)
+    print(f"{'Variant':<45} {'β1':<6} {'Final':<10} {'Best':<10}")
+    print("-"*80)
+    for name, d in data.items():
+        print(f"{name:<45} {d['meta']['beta1']:<6} {d['final']['test_loss']:<10.6f} {d['final']['best_test_loss']:<10.6f}")
+
 if __name__ == '__main__':
+    ANALYSIS_DIR.mkdir(exist_ok=True)
     data = load_results()
     if data:
         plot_heatmaps(data)
         plot_boxplot(data)
         print_summary(data)
+    
+    e_data = load_e_variants()
+    if e_data:
+        plot_e_variants(e_data)
+        print_e_summary(e_data)
