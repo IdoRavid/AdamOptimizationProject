@@ -97,12 +97,12 @@ Run 144 configs for each optimizer to generate heatmaps.
 
 **Selected Optimizers:**
 
-| ID | Optimizer | LR mult | WD mult | Why selected |
-|----|-----------|---------|---------|--------------|
-| A1 | Adam+L2 | 2 | 0 | Control (coupled baseline) |
-| B3 | AdamW Cosine | 2 | 0.5 | Standard AdamW, no normalization |
-| B4 | AdamW WarmRestarts | 2 | 0.03125 | Shows SGDR benefit |
-| B5 | AdamW Fixed+Norm | 2 | 32 | Best overall, shows normalization |
+| ID | Optimizer          | LR mult | WD mult | Why selected                      |
+|----|--------------------|---------|---------|-----------------------------------|
+| A1 | Adam+L2            | 2       | 0       | Control (coupled baseline)        |
+| B3 | AdamW Cosine       | 2       | 0.5     | Standard AdamW, no normalization  |
+| B4 | AdamW WarmRestarts | 2       | 0.03125 | Shows SGDR benefit                |
+| B5 | AdamW Fixed+Norm   | 2       | 32      | Best overall, shows normalization |
 
 **Logging (per epoch):**
 - Train/test loss
@@ -111,7 +111,7 @@ Run 144 configs for each optimizer to generate heatmaps.
 
 **Checkpoints:** Save model at epochs 25, 50, 75, 100
 
-**Reconstruction samples:** Every 20 epochs, same 8 test images
+**Reconstruction samples:** Every 25 epochs, same 8 test images
 
 **Analysis:**
 - Loss curves (all 4 optimizers on same plot)
