@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-RESULTS_DIR = PROJECT_ROOT / 'results'
+RESULTS_DIR = PROJECT_ROOT / 'results' / 'phase1'
 ANALYSIS_DIR = PROJECT_ROOT / 'analysis'
 
 def load_results():
@@ -23,54 +23,43 @@ def load_results():
         print(f"Loaded {name}: {len(data[name]['results'])}/144 configs")
     return data
 
-def load_e_variants():
-    """Load E variant JSON files (projection experiments)."""
-    data = {}
-    for f in sorted(RESULTS_DIR.glob('E*.json')):
-        with open(f) as fp:
-            data[f.stem] = json.load(fp)
-        print(f"Loaded {f.stem}")
-    return data
+
 
 def plot_heatmaps(data, output=None):
     output = output or ANALYSIS_DIR / 'heatmaps.png'
     """Generate heatmap grid for all optimizers."""
     layout = [
-        ('A: Baseline (Adam+L2)', ['A1']),
+        ('A: Baseline', ['A1']),
         ('B1-B4: AdamW + LR Schedules', ['B1', 'B2', 'B3', 'B4']),
         ('B5-B8: AdamW + Normalized', ['B5', 'B6', 'B7', 'B8']),
         ('C: Adafactor', ['C1', 'C2']),
         ('D: Combined', ['D1', 'D2', 'D3']),
+        ('E: Projection', ['E1', 'E2']),
     ]
     
-    fig, axes = plt.subplots(5, 4, figsize=(26, 30))
+    fig, axes = plt.subplots(6, 4, figsize=(24, 30))
     vmin, vmax = 0.01, 0.15
     im = None
     
-    for row_idx, (group_title, row) in enumerate(layout):
+    for row_idx, (group_title, variants) in enumerate(layout):
         for col_idx in range(4):
             ax = axes[row_idx, col_idx]
             
-            # Group title in first column
-            if col_idx == 0:
-                ax.set_ylabel(group_title + '\n\nLR mult', fontsize=18, fontweight='bold')
-            else:
-                ax.set_ylabel('LR mult', fontsize=16)
-            
-            if col_idx >= len(row):
+            if col_idx >= len(variants):
                 ax.axis('off')
                 continue
             
-            name = row[col_idx]
+            name = variants[col_idx]
+            
+            # Group title in first column
+            if col_idx == 0:
+                ax.set_ylabel(group_title + '\n\nLR mult', fontsize=14, fontweight='bold')
+            else:
+                ax.set_ylabel('LR mult', fontsize=12)
+            
             if name not in data:
-                ax.text(0.5, 0.5, f'{name}\n(pending)', ha='center', va='center', fontsize=20)
-                # Add invisible tick labels matching real ones for alignment
-                ax.set_xticks([0, 0.5, 1])
-                ax.set_xticklabels(['1/1024', '1/32', '2'], fontsize=14, alpha=0)
-                ax.set_yticks([0, 0.5, 1])
-                ax.set_yticklabels(['1/1024', '1/32', '2'], fontsize=14, alpha=0)
-                if col_idx == 0:
-                    ax.set_ylabel(group_title + '\n\nLR mult', fontsize=18, fontweight='bold')
+                ax.text(0.5, 0.5, f'{name}\n(pending)', ha='center', va='center', fontsize=16)
+                ax.set_xticks([]); ax.set_yticks([])
                 continue
             
             d = data[name]
@@ -85,21 +74,20 @@ def plot_heatmaps(data, output=None):
                 heatmap[i, j] = r['best_test_loss']
             
             im = ax.imshow(heatmap, cmap='Spectral', aspect='auto', origin='lower', vmin=vmin, vmax=vmax)
-            ax.set_title(f"{name}: {d['optimizer_name']}", fontsize=18, fontweight='bold')
-            ax.set_xlabel('WD mult', fontsize=16)
+            ax.set_title(f"{name}: {d['optimizer_name']}", fontsize=14, fontweight='bold')
+            ax.set_xlabel('WD mult', fontsize=12)
             ax.set_xticks([0, len(wd_mults)//2, len(wd_mults)-1])
-            ax.set_xticklabels(['1/1024', '1/32', '2'], fontsize=14)
+            ax.set_xticklabels(['1/1024', '1/32', '2'], fontsize=10)
             ax.set_yticks([0, len(lr_mults)//2, len(lr_mults)-1])
-            ax.set_yticklabels(['1/1024', '1/32', '2'], fontsize=14)
+            ax.set_yticklabels(['1/1024', '1/32', '2'], fontsize=10)
     
-    # Colorbar horizontal at top right
-    cbar_ax = fig.add_axes([0.55, 0.90, 0.35, 0.015])
-    cbar = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
-    cbar.set_label('Test Loss', fontsize=18)
-    cbar.ax.tick_params(labelsize=14)
+    # Colorbar
+    cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])
+    cbar = fig.colorbar(im, cax=cbar_ax)
+    cbar.set_label('Test Loss', fontsize=14)
     
-    plt.suptitle('Hyperparameter Sensitivity Heatmaps', fontsize=26, fontweight='bold', y=0.94)
-    plt.tight_layout(rect=[0, 0, 1, 0.93])
+    plt.suptitle('Hyperparameter Sensitivity Heatmaps', fontsize=20, fontweight='bold')
+    plt.tight_layout(rect=[0, 0, 0.9, 0.95])
     plt.savefig(output, dpi=150, bbox_inches='tight')
     plt.close()
     print(f"Saved: {output}")
@@ -168,41 +156,7 @@ def print_summary(data):
     for i, (name, median) in enumerate(ranking):
         print(f"{i+1}. {name}: median={median:.4f}")
 
-def plot_e_variants(data, output=None):
-    """Plot training curves and comparison for E variants."""
-    output = output or ANALYSIS_DIR / 'projection_experiments.png'
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-    
-    for name, d in data.items():
-        epochs = [h['epoch'] for h in d['history']]
-        test = [h['test_loss'] for h in d['history']]
-        ax1.plot(epochs, test, label=name.split('_')[0], linewidth=2)
-    
-    ax1.set_xlabel('Epoch'); ax1.set_ylabel('Test Loss')
-    ax1.set_title('Projection Experiments: Test Loss Curves')
-    ax1.legend(); ax1.grid(alpha=0.3)
-    
-    names = [n.split('_')[0] for n in data.keys()]
-    losses = [d['final']['test_loss'] for d in data.values()]
-    bars = ax2.bar(names, losses, color=plt.cm.tab10.colors[:len(names)])
-    ax2.set_ylabel('Final Test Loss'); ax2.set_title('Final Test Loss Comparison')
-    for bar, loss in zip(bars, losses):
-        ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.002, f'{loss:.4f}', ha='center', fontsize=9)
-    
-    plt.tight_layout()
-    plt.savefig(output, dpi=150, bbox_inches='tight')
-    plt.close()
-    print(f"Saved: {output}")
 
-def print_e_summary(data):
-    """Print E variants summary."""
-    print("\n" + "="*80)
-    print("PROJECTION EXPERIMENTS (E VARIANTS)")
-    print("="*80)
-    print(f"{'Variant':<45} {'β1':<6} {'Final':<10} {'Best':<10}")
-    print("-"*80)
-    for name, d in data.items():
-        print(f"{name:<45} {d['meta']['beta1']:<6} {d['final']['test_loss']:<10.6f} {d['final']['best_test_loss']:<10.6f}")
 
 if __name__ == '__main__':
     ANALYSIS_DIR.mkdir(exist_ok=True)
@@ -211,8 +165,3 @@ if __name__ == '__main__':
         plot_heatmaps(data)
         plot_boxplot(data)
         print_summary(data)
-    
-    e_data = load_e_variants()
-    if e_data:
-        plot_e_variants(e_data)
-        print_e_summary(e_data)
