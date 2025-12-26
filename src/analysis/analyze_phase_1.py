@@ -5,6 +5,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
+plt.rcParams['figure.facecolor'] = '#eee9e0'
+plt.rcParams['axes.facecolor'] = '#eee9e0'
+plt.rcParams['savefig.facecolor'] = '#eee9e0'
+
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 RESULTS_DIR = PROJECT_ROOT / 'results' / 'phase1'
 ANALYSIS_DIR = PROJECT_ROOT / 'analysis'
@@ -25,25 +29,17 @@ def load_results():
 
 
 
-def plot_heatmaps(data, output=None):
-    output = output or ANALYSIS_DIR / 'heatmaps.png'
-    """Generate heatmap grid for all optimizers."""
-    layout = [
-        ('A: Baseline', ['A1']),
-        ('B1-B4: AdamW + LR Schedules', ['B1', 'B2', 'B3', 'B4']),
-        ('B5-B8: AdamW + Normalized', ['B5', 'B6', 'B7', 'B8']),
-        ('C: Adafactor', ['C1', 'C2']),
-        ('D: Combined', ['D1', 'D2', 'D3']),
-        ('E: Projection', ['E1', 'E2']),
-    ]
-    
-    fig, axes = plt.subplots(6, 4, figsize=(24, 30))
-    vmin, vmax = 0.01, 0.15
+def _plot_heatmap_group(data, layout, title, output, vmin=0.01, vmax=0.15):
+    """Helper to plot a heatmap group with shared color scale."""
+    nrows = len(layout)
+    fig, axes = plt.subplots(nrows, 4, figsize=(24, 5 * nrows))
+    if nrows == 1:
+        axes = [axes]
     im = None
     
     for row_idx, (group_title, variants) in enumerate(layout):
         for col_idx in range(4):
-            ax = axes[row_idx, col_idx]
+            ax = axes[row_idx][col_idx]
             
             if col_idx >= len(variants):
                 ax.axis('off')
@@ -51,7 +47,6 @@ def plot_heatmaps(data, output=None):
             
             name = variants[col_idx]
             
-            # Group title in first column
             if col_idx == 0:
                 ax.set_ylabel(group_title + '\n\nLR mult', fontsize=14, fontweight='bold')
             else:
@@ -81,16 +76,36 @@ def plot_heatmaps(data, output=None):
             ax.set_yticks([0, len(lr_mults)//2, len(lr_mults)-1])
             ax.set_yticklabels(['1/1024', '1/32', '2'], fontsize=10)
     
-    # Colorbar
     cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])
     cbar = fig.colorbar(im, cax=cbar_ax)
     cbar.set_label('Test Loss', fontsize=14)
     
-    plt.suptitle('Hyperparameter Sensitivity Heatmaps', fontsize=20, fontweight='bold')
+    plt.suptitle(title, fontsize=20, fontweight='bold')
     plt.tight_layout(rect=[0, 0, 0.9, 0.95])
     plt.savefig(output, dpi=150, bbox_inches='tight')
     plt.close()
     print(f"Saved: {output}")
+
+
+def plot_heatmaps(data, output=None):
+    """Generate two heatmap plots: A-B and C-E with shared color scale."""
+    vmin, vmax = 0.01, 0.15
+    
+    layout_ab = [
+        ('A: Baseline', ['A1']),
+        ('B1-B4: AdamW + LR Schedules', ['B1', 'B2', 'B3', 'B4']),
+        ('B5-B8: AdamW + Normalized', ['B5', 'B6', 'B7', 'B8']),
+    ]
+    _plot_heatmap_group(data, layout_ab, 'Hyperparameter Sensitivity: A-B Variants', 
+                        ANALYSIS_DIR / 'heatmaps_AB.png', vmin, vmax)
+    
+    layout_cde = [
+        ('C: Adafactor', ['C1', 'C2']),
+        ('D: Combined', ['D1', 'D2', 'D3']),
+        ('E: Projection', ['E1', 'E2']),
+    ]
+    _plot_heatmap_group(data, layout_cde, 'Hyperparameter Sensitivity: C-E Variants',
+                        ANALYSIS_DIR / 'heatmaps_CDE.png', vmin, vmax)
 
 def plot_boxplot(data, output=None):
     output = output or ANALYSIS_DIR / 'boxplot.png'

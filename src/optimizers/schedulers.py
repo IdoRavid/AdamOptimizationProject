@@ -28,7 +28,7 @@ class CosineLR(LRScheduler):
 class StepDropLR(LRScheduler):
     """Step-drop schedule: drop LR by factor at specified epochs."""
     
-    def __init__(self, drop_epochs=(30, 60, 80), drop_factor=0.1):
+    def __init__(self, drop_epochs=(15, 30, 60, 80), drop_factor=0.1):
         self.drop_epochs = drop_epochs
         self.drop_factor = drop_factor
     
