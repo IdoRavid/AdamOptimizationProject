@@ -2,12 +2,33 @@
 
 Optimization course project comparing Adam variants on an Autoencoder reconstruction task.
 
+## Quick Start
+
+### Recommended: Open in Google Colab
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/IdoRavid/AdamOptimizationProject/blob/main/Omer%26Ido_Optimizing_Fashion.ipynb)
+
+The notebook automatically clones the repository and loads all dependencies.
+
+### Fallback: Manual Setup
+If the automatic setup fails:
+1. Download the repository as ZIP from GitHub
+2. Upload to Colab: `Omer&Ido_Optimizing_Fashion.ipynb`
+3. Upload the `src/` folder to `/content/src/`
+4. Upload final model weights: `results/models/B3_lr2_wd0.25_epoch100.pt` to `/content/`
+
 ## Papers Implemented
 - **AdamW** (Loshchilov & Hutter, 2019) - Decoupled Weight Decay Regularization
 - **Adafactor** (Shazeer & Stern, 2018) - Adaptive Learning Rates with Sublinear Memory Cost
 
 ## Goal
-Generate hyperparameter sensitivity heatmaps (learning rate vs weight decay) to show that AdamW decouples these hyperparameters (rectangular optimal region) vs Adam+L2 (diagonal optimal region).
+1. **Hyperparameter Decoupling**: Generate sensitivity heatmaps (learning rate vs weight decay) showing AdamW decouples these hyperparameters (rectangular optimal region) vs Adam+L2 (diagonal optimal region)
+2. **LR Schedule Comparison**: Compare Fixed, StepDrop, Cosine, and WarmRestarts schedules
+3. **Normalized Weight Decay**: Test batch-size-independent weight decay normalization
+4. **Adafactor Variants**: Explore memory-efficient optimization with/without momentum
+5. **Projection Experiments**: Project Adafactor's factored second-moment vectors onto convex sets (L2 ball, box constraints) to study regularization effects
+
+## Final Model
+**B3 (AdamW + Cosine LR)** with LR=0.002, WD=0.00025 — best balance of convergence and generalization.
 
 ## Optimizer Variants
 
@@ -17,37 +38,9 @@ Generate hyperparameter sensitivity heatmaps (learning rate vs weight decay) to 
 | B1-B4 | AdamW                       | Decoupled weight decay + Fixed/StepDrop/Cosine/WarmRestarts LR |
 | B5-B8 | AdamW+Norm                  | Normalized weight decay + LR schedules                         |
 | C1-C2 | Adafactor                   | Factored second moments (C1: β1=0, C2: β1=0.9)                 |
-| D1    | Adafactor+Norm Cosine       | Adafactor + normalized decay + Cosine LR (β1=0)                |
-| D2    | Adafactor+Norm WarmRestarts | Adafactor + normalized decay + WarmRestarts LR (β1=0)          |
-| D3    | Adafactor+Norm WarmRestarts | Adafactor + normalized decay + WarmRestarts LR (β1=0.9)        |
-| E1-E4 | Adafactor+Projection        | Adafactor with projected second-moment vectors                 |
-
-## Phase 1 Progress (30 epochs, 144 configs each)
-
-| ID | Variant                              | Owner | User      | Progress    |
-|----|--------------------------------------|-------|-----------|-------------|
-| A1 | Adam+L2                              | Ido   | dodor25   | 144/144 ✅   |
-| B1 | AdamW Fixed                          | Omer  |           | 144/144 ✅   |
-| B2 | AdamW StepDrop                       | Ido   | ido@huji  | 144/144 ✅   |
-| B3 | AdamW Cosine                         | Ido   | idoravid6 | 144/144 ✅   |
-| B4 | AdamW WarmRestarts                   | Ido   | dodor25   | 144/144 ✅   |
-| B5 | AdamW+Norm Fixed                     | Ido   | ido@huji  | 144/144 ✅   |
-| B6 | AdamW+Norm StepDrop                  | Ido   | idoravid6 | 144/144 ✅   |
-| B7 | AdamW+Norm Cosine                    | Omer  | normal    | 144/144 ✅   |
-| B8 | AdamW+Norm WarmRestarts              | Omer  | huji      | 144/144 ✅   |
-| C1 | Adafactor (no momentum)              | Ido   | dodor25   | 144/144 ✅   |
-| C2 | Adafactor (momentum)                 | Ido   | idoravid6 | 144/144 ✅   |
-| D1 | Adafactor+Norm Cosine (β1=0)         | Omer  | normal    | 144/144 ✅   |
-| D2 | Adafactor+Norm WarmRestarts (β1=0)   | Omer  | huji      | 144/144 ✅   |
-| D3 | Adafactor+Norm WarmRestarts (β1=0.9) | Ido   | idoravid6 | 144/144 ✅   |
-| E1 | Adafactor+L2Ball (β1=0)              | Omer  |           | 30 epochs ✅ |
-| E2 | Adafactor+L2Ball (β1=0.9)            | Omer  |           | 30 epochs ✅ |
-| E3 | Adafactor+Box (β1=0)                 | Omer  |           | 30 epochs ✅ |
-| E4 | Adafactor+Box (β1=0.9)               | Omer  |           | 30 epochs ✅ |
-
-## Run in Colab
-
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/IdoRavid/AdamOptimizationProject/blob/main/Omer%26Ido_Optimizing_Fashion.ipynb)
+| D1-D3 | Adafactor+Norm              | Adafactor + normalized decay + LR schedules                    |
+| E1-E2 | Adafactor+L2Ball            | Adafactor with L2 ball projection on vr/vc                     |
+| E3-E4 | Adafactor+Box               | Adafactor with box constraint projection on vr/vc              |
 
 ## Project Structure
 ```
@@ -55,15 +48,25 @@ Generate hyperparameter sensitivity heatmaps (learning rate vs weight decay) to 
 ├── src/
 │   ├── optimizers/
 │   │   ├── base.py          # BaseOptimizer ABC
-│   │   ├── schedulers.py    # LR schedulers
+│   │   ├── schedulers.py    # LR schedulers (Fixed, Cosine, StepDrop, WarmRestarts)
 │   │   ├── adam.py          # Base Adam
 │   │   ├── adam_l2.py       # Adam+L2 (A1)
-│   │   └── adamw.py         # AdamW (B1-B8)
+│   │   ├── adamw.py         # AdamW (B1-B8)
+│   │   ├── adafactor.py     # Adafactor with projection support (C1-E4)
+│   │   └── combined.py      # Combined AdamW+Adafactor (D1-D3)
+│   ├── analysis/
+│   │   ├── analyze_phase_1.py  # Heatmap generation
+│   │   └── analyze_phase_2.py  # Training curves analysis
 │   └── utils/
 │       ├── logging.py       # TrainingLog
-│       └── experiment.py    # GridSearchResult, heatmap plotting
-├── results/                 # JSON outputs from experiments
-└── test_plan.md            # Detailed experiment plan
+│       └── experiment.py    # GridSearchResult, OptimizerExperiment
+├── results/
+│   ├── phase1/              # Grid search results (144 configs × 16 optimizers)
+│   ├── phase2/              # Deep training results (100 epochs)
+│   ├── projection_test/     # Adafactor projection experiments
+│   └── models/              # Saved model checkpoints
+├── analysis/                # Generated plots (heatmaps, loss curves, reconstructions)
+└── documents/               # Reference papers and notes
 ```
 
 ## Authors
